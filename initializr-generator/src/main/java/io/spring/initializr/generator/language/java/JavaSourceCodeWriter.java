@@ -168,24 +168,27 @@ public class JavaSourceCodeWriter implements SourceCodeWriter<JavaSourceCode> {
 	}
 
 	private String formatAnnotationAttribute(Annotation.Attribute attribute) {
-		List<String> values = attribute.getValues();
-		if (attribute.getType().equals(Class.class)) {
-			return formatValues(values, (value) -> String.format("%s.class", getUnqualifiedName(value)));
+		if (attribute instanceof Annotation.NestedAnnotationAttribute) {
+			return formatNestedAnnotation(attribute.getValues(), this::formatAnnotation);
+		} else if (attribute instanceof Annotation.SimpleAttribute) {
+			Annotation.SimpleAttribute simple = (Annotation.SimpleAttribute) attribute;
+			List<String> values = simple.getValues();
+			if (simple.getType().equals(Class.class)) {
+				return formatValues(values, (value) -> String.format("%s.class", getUnqualifiedName(value)));
+			}
+			if (Enum.class.isAssignableFrom(simple.getType())) {
+				return formatValues(values, (value) -> {
+					String enumValue = value.substring(value.lastIndexOf(".") + 1);
+					String enumClass = value.substring(0, value.lastIndexOf("."));
+					return String.format("%s.%s", getUnqualifiedName(enumClass), enumValue);
+				});
+			}
+			if (simple.getType().equals(String.class)) {
+				return formatValues(values, (value) -> String.format("\"%s\"", value));
+			}
+			return formatValues(values, (value) -> String.format("%s", value));
 		}
-		if (Enum.class.isAssignableFrom(attribute.getType())) {
-			return formatValues(values, (value) -> {
-				String enumValue = value.substring(value.lastIndexOf(".") + 1);
-				String enumClass = value.substring(0, value.lastIndexOf("."));
-				return String.format("%s.%s", getUnqualifiedName(enumClass), enumValue);
-			});
-		}
-		if (attribute.getType().equals(String.class)) {
-			return formatValues(values, (value) -> String.format("\"%s\"", value));
-		}
-		if (attribute.getType().isAnnotation()) {
-			return formatNestedAnnotation(attribute.getNestedAnnotations(), this::formatAnnotation);
-		}
-		return formatValues(values, (value) -> String.format("%s", value));
+		throw new IllegalStateException("No implementation of formatAnnotationAttribute for type " + attribute.getClass());
 	}
 
 	private String formatValues(List<String> values, Function<String, String> formatter) {
@@ -297,15 +300,18 @@ public class JavaSourceCodeWriter implements SourceCodeWriter<JavaSourceCode> {
 		List<String> imports = new ArrayList<>();
 		imports.add(annotation.getName());
 		annotation.getAttributes().forEach((attribute) -> {
-			if (attribute.getType() == Class.class) {
-				imports.addAll(attribute.getValues());
-			}
-			if (Enum.class.isAssignableFrom(attribute.getType())) {
-				imports.addAll(attribute.getValues().stream().map((value) -> value.substring(0, value.lastIndexOf(".")))
-						.collect(Collectors.toList()));
-			}
-			if (attribute.getType().isAnnotation()) {
-				imports.add(attribute.getType().getCanonicalName());
+			if (attribute instanceof Annotation.SimpleAttribute) {
+				Annotation.SimpleAttribute simple = (Annotation.SimpleAttribute) attribute;
+				if (simple.getType() == Class.class) {
+					imports.addAll(simple.getValues());
+				}
+				if (Enum.class.isAssignableFrom(simple.getType())) {
+					imports.addAll(simple.getValues().stream().map((value) -> value.substring(0, value.lastIndexOf(".")))
+							.collect(Collectors.toList()));
+				}
+			} else if (attribute instanceof Annotation.NestedAnnotationAttribute) {
+				Annotation.NestedAnnotationAttribute nested = (Annotation.NestedAnnotationAttribute) attribute;
+				nested.getValues().forEach(ann -> imports.addAll(determineImports(ann)));
 			}
 		});
 		return imports;

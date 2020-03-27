@@ -265,7 +265,7 @@ class JavaSourceCodeWriterTests {
 		Annotation nested = Annotation.name("io.spring.initializr.generator.condition.ConditionalOnLanguage",
 				(builder) -> builder.attribute("value", String.class, "java"));
 		List<String> lines = writeClassAnnotation(Annotation.name("org.springframework.test.TestApplication",
-				(builder) -> builder.attribute("nested", ConditionalOnLanguage.class, nested)));
+				(builder) -> builder.attribute("nested", nested)));
 		assertThat(lines).containsExactly("package com.example;", "",
 				"import io.spring.initializr.generator.condition.ConditionalOnLanguage;",
 				"import org.springframework.test.TestApplication;", "",

@@ -75,12 +75,12 @@ public final class Annotation {
 		}
 
 		public Builder attribute(String name, Class<?> type, String... values) {
-			this.attributes.put(name, new Attribute(name, type, values));
+			this.attributes.put(name, new SimpleAttribute(name, type, values));
 			return this;
 		}
 
-		public Builder attribute(String name, Class<?> type, Annotation... values) {
-			this.attributes.put(name, new Attribute(name, type, values));
+		public Builder attribute(String name, Annotation... values) {
+			this.attributes.put(name, new NestedAnnotationAttribute(name, values));
 			return this;
 		}
 
@@ -89,28 +89,22 @@ public final class Annotation {
 	/**
 	 * Define an attribute of an annotation.
 	 */
-	public static final class Attribute {
+	public interface Attribute<T> {
+		String getName();
+		List<T> getValues();
+	}
 
+	public static final class SimpleAttribute implements Attribute<String> {
 		private final String name;
 
 		private final Class<?> type;
 
 		private final List<String> values;
 
-		private final List<Annotation> nestedAnnotations;
-
-		private Attribute(String name, Class<?> type, String... values) {
+		private SimpleAttribute(String name, Class<?> type, String... values) {
 			this.name = name;
 			this.type = type;
 			this.values = Arrays.asList(values);
-			this.nestedAnnotations = Collections.emptyList();
-		}
-
-		private Attribute(String name, Class<?> type, Annotation... values) {
-			this.name = name;
-			this.type = type;
-			this.values = Collections.emptyList();
-			this.nestedAnnotations = Arrays.asList(values);
 		}
 
 		public String getName() {
@@ -124,11 +118,33 @@ public final class Annotation {
 		public List<String> getValues() {
 			return this.values;
 		}
+	}
 
-		public List<Annotation> getNestedAnnotations() {
+	public static final class NestedAnnotationAttribute implements Attribute<Annotation> {
+
+		private final String name;
+
+		private final Class<?> type;
+
+		private final List<Annotation> nestedAnnotations;
+
+		private NestedAnnotationAttribute(String name, Annotation... values) {
+			this.name = name;
+			this.type = Annotation.class;
+			this.nestedAnnotations = Arrays.asList(values);
+		}
+
+		public String getName() {
+			return this.name;
+		}
+
+		public Class<?> getType() {
+			return this.type;
+		}
+
+		public List<Annotation> getValues() {
 			return this.nestedAnnotations;
 		}
 
 	}
-
 }
